@@ -1,0 +1,6 @@
+name: instant_rpc
+version: 0.1.1
+author: Graciliano Monteiro Passos
+description: A simple Dart RPC over HTTP.
+dependencies:
+  worker: any
