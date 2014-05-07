@@ -779,7 +779,7 @@ class IRPCResponder {
       if ( k.isNotEmpty ) {
         int c0 = k.codeUnitAt(0) ;
         
-        if (c0 >= 48 && c0 <= 57 && _REGEXP_digit.hasMatch(k)) {
+        if ( !(c0 >= 48 && c0 <= 57 && _REGEXP_digit.hasMatch(k)) ) {
           namedParams[k] = v ;  
         }
       }
