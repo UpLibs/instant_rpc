@@ -119,6 +119,16 @@ class IRPCHTTPDaemon {
       return ;
     }
     
+    ///////////////
+    
+    List<String> headerOriginList = request.headers['Origin'] ;
+    
+    String headerOrigin = headerOriginList != null && headerOriginList.isNotEmpty ? headerOriginList[0] : null ;
+    
+    if (headerOrigin != null && headerOrigin.isNotEmpty ) {
+      request.response.headers.set('Access-Control-Allow-Origin' , headerOrigin) ;
+    }
+
     //////////////
     
     IRPCEventTable eventTable = _getEventTable(request) ;
