@@ -45,9 +45,18 @@ class InstantRPC<T> {
     
     _providerInstanceMirror = _providerClassMirror.newInstance(new Symbol('') , [] , {}) ;
     
-    _provider = _providerInstanceMirror.reflectee ;
+    Object providerObj = _providerInstanceMirror.reflectee ;
     
-    IRPCProxy asProxy = _provider ; 
+    _provider = providerObj ;
+    
+    IRPCProxy asProxy ;
+    
+    if ( providerObj is IRPCProxy ) {
+      asProxy = providerObj ;
+    }
+    else {
+      throw new StateError('Provider is not an IRPCProxy object! '+ providerObj) ;
+    }
     
     asProxy._irpc = this ;
     
@@ -87,6 +96,10 @@ class InstantRPC<T> {
   }
   
   T get call => _provider ;
+  
+  T getCall() {
+    return _provider ;
+  }
   
   String get webserviceURL => _webserviceURI.toString() ;
   
@@ -294,36 +307,54 @@ abstract class IRPCProxy {
       }
     }
     
-    List<ClassMirror> superInterf = _irpc._providerClassMirror.superinterfaces ;
+    List<ClassMirror> superInterf = [ _irpc._providerClassMirror ] ;
+    superInterf.addAll( _irpc._providerClassMirror.superinterfaces ) ;
     
     ClassMirror targetSuperInterface = null ;
     TypeMirror methodReturnType = null ;
     
+    bool dartMirrorInstable = false ;
+    
     for ( ClassMirror cm in superInterf ) {
       DeclarationMirror dm = cm.declarations[mirror.memberName] ;
-      if ( dm == null || dm is! MethodMirror ) continue ;
+      
+      if (dm == null ) {
+        dm = cm.instanceMembers[mirror.memberName] ;
+      }
+      
+      if ( dm == null ) {
+        continue ;
+      }
+      else if ( dm is! MethodMirror ) {
+        //print('dm not MethodMirror: $dm') ;
+        continue ;
+      }
       
       targetSuperInterface = cm ;
       
-      MethodMirror mm = dm ;
+      MethodMirror mm = dm as MethodMirror ;
       methodReturnType = mm.returnType ;
-    }
-    
-    if ( methodReturnType == null ) {
-      _checkMethods[methodName] = [] ;
-      throw new StateError("Can't find method '$methodName' in superinterfaces declarations: $superInterf") ;
-    }
-    
-    String typeName = MirrorSystem.getName( methodReturnType.qualifiedName ) ;
-    
-    if ( typeName != 'void' && typeName != 'dart.async.Future' ) {
-      _checkMethods[methodName] = [] ;
       
-      typeName = typeName.replaceFirst(new RegExp(r'^dart\.core\.', caseSensitive: true), '') ;
-      throw new StateError("Can't call a method that doesn't return Future: $typeName ${ targetSuperInterface.reflectedType }.$methodName(...) >> Should return Future<$typeName> ") ;
+      if (methodReturnType == null) dartMirrorInstable = true ;
     }
     
-    List ret = [ methodName , methodReturnType.typeArguments ] ;
+    if ( !dartMirrorInstable ) {
+      if ( methodReturnType == null ) {
+        _checkMethods[methodName] = [] ;
+        throw new StateError("Can't find method '$methodName' in superinterfaces declarations: $superInterf") ;
+      }
+      
+      String typeName = MirrorSystem.getName( methodReturnType.qualifiedName ) ;
+      
+      if ( typeName != 'void' && typeName != 'dart.async.Future' ) {
+        _checkMethods[methodName] = [] ;
+        
+        typeName = typeName.replaceFirst(new RegExp(r'^dart\.core\.', caseSensitive: true), '') ;
+        throw new StateError("Can't call a method that doesn't return Future: $typeName ${ targetSuperInterface.reflectedType }.$methodName(...) >> Should return Future<$typeName> ") ;
+      }  
+    }
+    
+    List ret = [ methodName , methodReturnType != null ? methodReturnType.typeArguments : null ] ;
     
     _checkMethods[methodName] = ret ;
     
@@ -376,9 +407,20 @@ abstract class IRPCProxy {
     
     _irpc._updateEventTable(eventTableStr) ;
     
-    String responseValue = requestResponse.substring(splitIdx4) ;
+    String responseData = requestResponse.substring(splitIdx4) ;
+    
+    int splitIdx5 = responseData.indexOf('\n') ;
+    
+    String responseTypeName = responseData.substring(0 , splitIdx5) ;
+    String responseValue = responseData.substring(splitIdx5+1) ;
    
-    return IRPCResponder._toType(responseValue, returnType) ;
+    if ( returnType != null ) {
+      return IRPCResponder._toTypeBySymbol(responseValue, returnType) ; 
+    }
+    else {
+      return IRPCResponder._toTypeByName(responseValue, responseTypeName) ;  
+    }
+    
   }
   
 }
@@ -735,6 +777,32 @@ abstract class IRPCSession implements Map {
   */
 }
 
+class IRPCResponderCallMethodReturn {
+  
+  TypeMirror returnType ;
+  Future ret ;
+  
+  String returnTypeName ;
+  
+  TypeMirror returnTypeGeneric ;
+  String returnTypeGenericName ;
+  
+  IRPCResponderCallMethodReturn( this.returnType , this.ret ) {
+    this.returnTypeName = IRPCResponder.getTypeNameByMirror(returnType) ;
+    
+    if ( returnTypeName != 'void' && returnTypeName != 'dart.async.Future' ) {
+      throw new StateError('Return not of type Future') ;
+    }
+    
+    List<TypeMirror> generics = returnType.typeArguments ;
+    
+    this.returnTypeGeneric = generics != null && generics.isNotEmpty ? generics[0] : null ;
+    
+    this.returnTypeGenericName = IRPCResponder.getTypeNameByMirror(this.returnTypeGeneric) ; 
+  }
+  
+}
+
 class IRPCResponder {
   
   static final RegExp _REGEXP_digit = new RegExp(r'ˆ\d+$') ;
@@ -788,10 +856,42 @@ class IRPCResponder {
     return [ providerPath , methodName , positionalParams , namedParams , lastEventTableId ] ;
   }
   
-  static dynamic _toType( String val , Symbol type ) {
-    if (val == null || type == null) return null ;
-    
+  
+  
+  static String getTypeNameByMirror(TypeMirror typeMirror) {
+    return MirrorSystem.getName( typeMirror.qualifiedName ) ;  
+  }
+  
+  static String getTypeNameBySymbol(Symbol type) {
+    if (type == null) return null ;
     String typeName = MirrorSystem.getName(type) ;
+    return typeName ;
+  }
+  
+  static dynamic _toType( String val , dynamic type ) {
+    if ( type is String ) {
+      return _toTypeByName(val, type as String) ;
+    }
+    else {
+      return _toTypeBySymbol(val, type as Symbol) ;
+    }
+  }
+  
+  static dynamic _toTypeBySymbol( String val , Symbol type ) {
+    if (val == null || type == null) return null ;
+        
+    String typeName = MirrorSystem.getName(type) ;
+    
+    return _toTypeByName(val , typeName) ;
+  }
+  
+  static const String DART_CORE_PREFIX = 'dart.core.';
+  
+  static dynamic _toTypeByName( String val , String typeName ) {
+    
+    if (typeName.startsWith(DART_CORE_PREFIX)) {
+      typeName = typeName.substring( DART_CORE_PREFIX.length ) ;
+    }
     
     switch (typeName) {
       case 'bool': return val.toLowerCase() == 'true' ;
@@ -806,7 +906,7 @@ class IRPCResponder {
     
   }
   
-  static Future callMethod( dynamic obj , String methodName , List<String> positionalParams , Map<String,String> namedParams , IRPCSession irpcsession , IRPCEventTable eventTable) {
+  static IRPCResponderCallMethodReturn callMethod( dynamic obj , String methodName , List<String> positionalParams , Map<String,String> namedParams , IRPCSession irpcsession , IRPCEventTable eventTable) {
     
     List<dynamic> positionalParamsTyped = [] ;
     Map<Symbol,dynamic> namedParamsTyped = {} ;
@@ -819,6 +919,7 @@ class IRPCResponder {
     
     MethodMirror mm = cm.declarations[methodSymbol] ;
     
+    TypeMirror mmReturnType = mm.returnType ;
     
     int posParamIdx = -1 ;
     
@@ -847,7 +948,7 @@ class IRPCResponder {
         }
       }
       else {
-        val = _toType(param, tm.simpleName) ;  
+        val = _toTypeBySymbol(param, tm.simpleName) ;  
       }
       
       if ( p.isNamed ) {
@@ -882,7 +983,10 @@ class IRPCResponder {
       IRPCEventTable._clearCurrentEventTable() ;
     }
     
-    return retIm != null && retIm.hasReflectee ? retIm.reflectee : null ;
+    return new IRPCResponderCallMethodReturn(
+        mmReturnType ,
+        retIm != null && retIm.hasReflectee ? retIm.reflectee : null
+    ) ;
   }
   
 }

@@ -161,6 +161,7 @@ class IRPCHTTPDaemon {
       request.response.write("${ eventTableStr.length }\n$eventTableStr\n") ;
       
       if ( r._response != null ) {
+        request.response.write( "${r._responseTypeName}\n" ) ;
         request.response.write( r._response ) ;
       }
 
@@ -194,12 +195,14 @@ class _MyIRPCSession extends IRPCSessionWrapper {
 class _CallReturn {
   
   Map _sessionMap ;
+  String _responseTypeName ;
   String _response ;
+  
   
   IRPCEventTable _eventTable ;
   String _eventTableStr ;
     
-  _CallReturn( this._sessionMap , this._response , dynamic eventTable) {
+  _CallReturn( this._sessionMap , this._responseTypeName, this._response , dynamic eventTable) {
 
     if ( eventTable is IRPCEventTable ) {
       this._eventTable = eventTable ;
@@ -268,9 +271,9 @@ class _CallTask implements Task {
     
     IRPCEventTable eventTable = this.eventTable ;
     
-    Future call = null ;
+    IRPCResponderCallMethodReturn callRet = null ;
     try {
-      call = IRPCResponder.callMethod(provider, _methodName, _positionalParams, _namedParams, irpcSession, eventTable) ;  
+      callRet = IRPCResponder.callMethod(provider, _methodName, _positionalParams, _namedParams, irpcSession, eventTable) ;  
     }
     catch( error , trace ) {
       print(error) ;
@@ -279,11 +282,13 @@ class _CallTask implements Task {
     
     dynamic returnEventTable = this._eventTable != null ? eventTable : eventTable.toString() ;
     
-    if (call != null) {
-      return call.then((v) => new _CallReturn( _sessionMap , v.toString() , returnEventTable ) ) ;
+    
+    
+    if (callRet.ret != null) {
+      return callRet.ret.then((v) => new _CallReturn( _sessionMap , callRet.returnTypeGenericName , v.toString() , returnEventTable ) ) ;
     }
     else {
-      return new Future.value( new _CallReturn( _sessionMap , null , returnEventTable ) ) ;
+      return new Future.value( new _CallReturn( _sessionMap , callRet.returnTypeGenericName , null , returnEventTable ) ) ;
     }
      
   }
