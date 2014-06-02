@@ -411,9 +411,17 @@ abstract class IRPCProxy {
     
     int splitIdx5 = responseData.indexOf('\n') ;
     
-    String responseTypeName = responseData.substring(0 , splitIdx5) ;
-    String responseValue = responseData.substring(splitIdx5+1) ;
-   
+    String responseTypeName ;
+    String responseValue ;
+       
+    if (splitIdx5 >= 0) {
+      responseTypeName = responseData.substring(0 , splitIdx5) ;
+      responseValue = responseData.substring(splitIdx5+1) ;
+    }
+    else {
+      return null ;
+    }
+    
     if ( returnType != null ) {
       return IRPCResponder._toTypeBySymbol(responseValue, returnType) ; 
     }
