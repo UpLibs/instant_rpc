@@ -258,7 +258,7 @@ abstract class IRPCRequester {
   
   //////////////////////////////////////////////////
   
-  Future<String> doRequestSimple(Uri url) ;
+  Future<String> doRequest(Uri url) ;
 
   Future<String> doRequestComplex(IRPCRequest request) ;
   
@@ -267,7 +267,7 @@ abstract class IRPCRequester {
     
     print("EVTUP REQUEST>> $url") ;
         
-    return doRequestSimple(url) ;
+    return doRequest(url) ;
   }
   
   Future<String> createRequest( Uri webserviceURI, String memberName , List params , Map<Symbol, dynamic> namedParams , int lastReceivedEvent ) {

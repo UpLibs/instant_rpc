@@ -141,7 +141,7 @@ class IRPCRequesterClient extends IRPCRequester {
     
   }
   
-  Future<String> doRequestSimple(Uri url) {
+  Future<String> doRequest(Uri url) {
     return getURL(url) ;
   }
   
