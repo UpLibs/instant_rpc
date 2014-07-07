@@ -90,12 +90,87 @@ class IRPCHTTPDaemon {
   static const String SESSION_IRPC_EVENT_TABLE = '__IRPC_EVENT_TABLE__';
   
   void _processRequest( HttpRequest request ) {
-    
     Uri uri = request.uri ;
     
-    //print('PROCESS REQUEST> $uri > ${ request.connectionInfo.remoteAddress }') ;
+    if (request.method == 'POST') {
+      //print('PROCESS REQUEST POST> $uri > ${ request.connectionInfo.remoteAddress }') ;
 
-    List ret = IRPCResponder.parseRequest( uri.path , uri.queryParameters ) ;
+      request.listen((List<int> buffer) {
+        String postData = new String.fromCharCodes(buffer) ;
+        
+        Map<String,String> postParams = _parsePostData(request, postData) ;
+        
+        //print('POST DATA> $postData > $postParams') ;
+        
+        _processRequest_FullyReceived(request , uri.path , postParams) ;
+      });
+    }
+    else {
+      //print('PROCESS REQUEST> $uri > ${ request.connectionInfo.remoteAddress }') ;
+
+      _processRequest_FullyReceived(request , uri.path , uri.queryParameters) ;
+    }
+    
+  }
+  
+  List<String> _splitOnce(String s, String delimiter) {
+    int i = s.indexOf(delimiter) ;
+    return [ s.substring(0 , i) , s.substring(i+delimiter.length) ] ;
+  }
+  
+  Map<String,String> _parsePostData(HttpRequest request, String postData) {
+    
+    String boundary = request.headers.contentType.parameters['boundary'] ;
+    
+    List<String> parts = postData.split('$boundary\r\n') ;
+    
+    parts[ parts.length-1 ] = _splitOnce(parts.last, '$boundary--')[0] ;
+    
+    Map<String, String> postParams = {} ;
+    
+    for (String part in parts) {
+      if (part.isEmpty) continue ;
+      
+      List<String> headerAndContent = _splitOnce(part, '\r\n\r\n') ; 
+      
+      String partHeader = headerAndContent[0] ;
+      String content = headerAndContent[1] ;
+      
+      String contentEnd = content.substring(content.length-2) ;
+      
+      if (contentEnd == '\r\n') {
+        content = content.substring(0, content.length-2) ;
+      }
+      else {
+        throw new FormatException('Content not ending with \\r\\n') ;
+      }
+      
+      List<String> headersLines = _splitOnce(partHeader, '\r\n') ;
+      Map<String,String> headers = {} ;
+
+      for (String line in headersLines) {
+        List<String> split = _splitOnce(line, ': ') ;
+        String name = split[0] ;
+        String val = split[1] ;
+        headers[name] = val ;
+      }
+      
+      String contentDisp = headers['Content-Disposition'] ;
+      
+      String fieldName = _splitOnce(contentDisp, 'name=')[1].split(new RegExp('[\'"]'))[1] ;
+      
+      //print('PART> $fieldName > $headers > <<<$content>>>') ;
+      
+      postParams[fieldName] = content ;
+    }
+    
+    return postParams ;
+  }
+  
+  void _processRequest_FullyReceived( HttpRequest request , String path , Map<String,String> queryParameters) {
+    Uri uri = request.uri ;
+    
+    List ret = IRPCResponder.parseRequest( path, queryParameters ) ;
     
     String providerPath = ret[0] ;
     String methodName = ret[1] ;

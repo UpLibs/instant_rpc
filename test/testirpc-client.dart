@@ -41,6 +41,14 @@ void test2( InstantRPC<FooInterface> irpc ) {
   
   irpc.call.test4(40) ;
   
+  String longString = 'a' ;
+  
+  while (longString.length < 1024*32) {
+    longString += longString.length.toString() ;
+  }
+  
+  irpc.call.testLongString(longString) ;
+  
   irpc.listenToEvent( (e) {
     print("LISTEN EVENT>> $e") ;
   } ) ;

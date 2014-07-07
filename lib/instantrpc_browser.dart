@@ -10,8 +10,19 @@ export 'dart:async' ;
 
 class IRPCRequesterBrowser extends IRPCRequester {
   
-  Future<String> doRequest(Uri url) {
+  Future<String> doRequestSimple(Uri url) {
     return HttpRequest.getString(url.toString()) ;
+  }
+  
+  Future<String> doRequestComplex(IRPCRequest request) {
+    
+    if (request.methodPost) {
+      return HttpRequest.postFormData(request.url.toString() , request.postParams).then((xhr) => xhr.responseText) ;
+    }
+    else {
+      return HttpRequest.getString(request.url.toString()) ;  
+    }
+    
   }
   
 }

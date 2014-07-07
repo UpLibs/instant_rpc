@@ -4,6 +4,8 @@ import 'dart:async' ;
 import 'dart:io';
 import 'dart:convert' ;
 
+import 'dart:math' as Math ;
+
 import 'instantrpc_core.dart' ;
 export 'instantrpc_core.dart' ;
 
@@ -23,11 +25,63 @@ class IRPCRequesterClient extends IRPCRequester {
           .then( (HttpClientResponse response) => _processResponse(response) );
   }
   
-  Future<HttpClientResponse> _processRequest( HttpClientRequest request ) {
-    
+  Future<String> getURLPost(Uri url, Map<String,String> postParams) {
+      return httpClient.openUrl('POST' , url)
+        .then( (HttpClientRequest request) => _processRequestPost(request, postParams) )
+          .then( (HttpClientResponse response) => _processResponse(response) );
+  }
+  
+  void _setRequestCookies(HttpClientRequest request) {
+
     for ( Cookie c in _cookies ) {
       request.cookies.add( new Cookie(c.name, c.value) ) ;
     }
+    
+  }
+  
+  Future<HttpClientResponse> _processRequest( HttpClientRequest request ) {
+    _setRequestCookies(request) ;
+    
+    return request.close() ;
+  }
+  
+  static Math.Random rand = new Math.Random() ;
+  
+  String _createBoundary() {
+    String boundary = '------------------------' ;
+    for (int i = 0 ; i < 20 ; i++) {
+      boundary += rand.nextInt(10).toString() ;
+    }
+    return boundary ; 
+  }
+  
+  Future<HttpClientResponse> _processRequestPost( HttpClientRequest request , Map<String,String> postParams ) {
+    _setRequestCookies(request) ;
+    
+    String boundary = _createBoundary() ;
+    
+    String body = "" ;
+    
+    for (String key in postParams.keys) {
+      String val = postParams[key] ;
+      
+      body += "$boundary\r\n" ;
+      body += 'Content-Disposition: form-data; name="$key"\r\n' ;
+      body += 'Content-Type: text/plain\r\n' ;
+      body += '\r\n' ;
+      
+      body += val ;
+      body += '\r\n' ;
+    }
+    
+
+    body += "$boundary--\r\n" ;
+    
+
+    request.headers.contentType = ContentType.parse('multipart/form-data; charset=UTF-8"; boundary=$boundary') ;
+    request.headers.contentLength = body.length ;
+    
+    request.add(body.codeUnits) ;
     
     return request.close() ;
   }
@@ -87,8 +141,19 @@ class IRPCRequesterClient extends IRPCRequester {
     
   }
   
-  Future<String> doRequest(Uri url) {
+  Future<String> doRequestSimple(Uri url) {
     return getURL(url) ;
+  }
+  
+  Future<String> doRequestComplex(IRPCRequest request) {
+    
+    if (request.methodPost) {
+      return getURLPost(request.url, request.postParams) ; 
+    }
+    else {
+      return getURL(request.url) ;  
+    }
+    
   }
   
 }

@@ -197,6 +197,55 @@ class InstantRPC<T> {
    
 }
 
+class IRPCRequest {
+  
+  Uri url ;
+  Map<String,String> postParams ;
+  bool methodPost ;
+  
+  IRPCRequest( bool secure, String authority , String path , Map<String, String> params ) {
+    
+    int paramsSize = 0 ;
+        
+    for (String key in params.keys) {
+      String val = params[key] ;
+      paramsSize += key.length + 1 + val.length ;
+    }
+    
+    if (paramsSize < 1024*4) {
+      this.methodPost = false ;
+      this.url = secure ?
+                          new Uri.https( authority , path , params )
+                          :
+                          new Uri.http( authority , path , params ) ;
+                       ;
+    }
+    else {
+      this.methodPost = true ;
+      this.postParams = params ;
+      this.url = secure ?
+                          new Uri.https( authority , path )
+                          :
+                          new Uri.http( authority , path ) ;
+                       ;      
+    }
+    
+  }
+  
+  IRPCRequest.get(this.url) {
+    this.methodPost = false ;
+  }
+  
+  IRPCRequest.post(this.url, this.postParams) {
+    this.methodPost = true ;
+  }
+  
+  String toString() {
+    return "${ methodPost ? 'POST' : 'GET' }> $url $postParams" ;
+  }
+  
+}
+
 typedef IRPCRequester IRPCRequesterInstantiatorFunction(String webserviceURL) ;
 
 abstract class IRPCRequester {
@@ -209,22 +258,24 @@ abstract class IRPCRequester {
   
   //////////////////////////////////////////////////
   
-  Future<String> doRequest(Uri url) ;
+  Future<String> doRequestSimple(Uri url) ;
+
+  Future<String> doRequestComplex(IRPCRequest request) ;
   
   Future<String> createEventUpdateRequest( Uri webserviceURI , int lastReceivedEvent ) {
     Uri url = buildEventUpdateRequestURL(webserviceURI, lastReceivedEvent) ;
     
     print("EVTUP REQUEST>> $url") ;
         
-    return doRequest(url) ;
+    return doRequestSimple(url) ;
   }
   
   Future<String> createRequest( Uri webserviceURI, String memberName , List params , Map<Symbol, dynamic> namedParams , int lastReceivedEvent ) {
-    Uri url = buildRequestURL(webserviceURI, memberName, params, namedParams, lastReceivedEvent) ;
+    IRPCRequest request = buildRequestURL(webserviceURI, memberName, params, namedParams, lastReceivedEvent) ;
     
-    print("REQUEST>> $url") ;
+    print("REQUEST>> $request") ;
     
-    return doRequest(url) ;
+    return doRequestComplex(request) ;
   }
   
   static const String REQUEST_EVENT_UPDATE = '__IRPC_EVT__' ;
@@ -244,7 +295,7 @@ abstract class IRPCRequester {
   static const String REQUEST_EVENT_SYNCH_ID = '__IRPC_EVT_ID__' ;
   
   
-  static Uri buildRequestURL( Uri webserviceURI, String memberName , List params , Map<Symbol, dynamic> namedParams , int eventTableLastId ) {
+  static IRPCRequest buildRequestURL( Uri webserviceURI, String memberName , List params , Map<Symbol, dynamic> namedParams , int eventTableLastId ) {
 
     Map<String,String> query = {} ;
     
@@ -275,13 +326,9 @@ abstract class IRPCRequester {
     
     query[REQUEST_EVENT_SYNCH_ID] = eventTableLastId.toString() ;
     
-    Uri uri = webserviceURI.scheme == 'https' ?
-        new Uri.https( webserviceURI.authority , webserviceURI.path + memberName , query )
-        :
-        new Uri.http( webserviceURI.authority , webserviceURI.path + memberName , query ) ;
-        ;
-    
-    return uri ;
+    IRPCRequest request = new IRPCRequest( webserviceURI.scheme == 'https', webserviceURI.authority , webserviceURI.path + memberName , query ) ;
+     
+    return request ;
   }
   
 }
@@ -806,7 +853,7 @@ class IRPCResponderCallMethodReturn {
     
     this.returnTypeGeneric = generics != null && generics.isNotEmpty ? generics[0] : null ;
     
-    this.returnTypeGenericName = IRPCResponder.getTypeNameByMirror(this.returnTypeGeneric) ; 
+    this.returnTypeGenericName = this.returnTypeGeneric != null ? IRPCResponder.getTypeNameByMirror(this.returnTypeGeneric) : null ; 
   }
   
 }

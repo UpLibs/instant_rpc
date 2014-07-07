@@ -91,7 +91,11 @@ class Foo implements FooInterface {
     
     print('TEST4>> $a >> count: ${ session['count'] }') ;
   }
-  
+
+  @override
+  void testLongString(String longString) {
+    print('LONG STRING> $longString') ;
+  }
 }
 
 main() {

@@ -11,4 +11,6 @@ abstract class FooInterface {
   
   void test4( int a ) ;
   
+  void testLongString( String longString ) ;
+  
 }
