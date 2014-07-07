@@ -23,6 +23,9 @@ TODO
 CHANGELOG
 ---------
 
+  * version: 0.1.3:
+  Add support for POST parameters, for long values.
+
   * version: 0.1.2:
   Better compatibility with mirrors and remote reflection.
 
