@@ -23,6 +23,9 @@ TODO
 CHANGELOG
 ---------
 
+  * version: 0.1.5:
+  Add support to URL Encoded POST data.
+
   * version: 0.1.3:
   Add support for POST parameters, for long values.
 

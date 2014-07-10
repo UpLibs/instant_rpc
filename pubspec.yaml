@@ -1,5 +1,5 @@
 name: instant_rpc
-version: 0.1.4
+version: 0.1.5
 author: Graciliano Monteiro Passos <gracilianomp@gmail.com>
 description: A simple Dart RPC over HTTP.
 homepage: https://github.com/UpLibs/instant_rpc
