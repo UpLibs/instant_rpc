@@ -120,6 +120,25 @@ class IRPCHTTPDaemon {
   
   Map<String,String> _parsePostData(HttpRequest request, String postData) {
     
+    String mimeType = request.headers.contentType.mimeType.toLowerCase() ;
+    
+    if ( mimeType == 'multipart/form-data' ) {
+      return _parsePostData_Multipart(request, postData) ;
+    }
+    else if ( mimeType == 'application/x-www-form-urlencoded' ) {
+      return _parsePostData_UrlEncoded(request, postData) ;
+    }
+    else {
+      throw new ArgumentError("Can't parse POST data of type: $mimeType") ;
+    }
+  }
+  
+  Map<String,String> _parsePostData_UrlEncoded(HttpRequest request, String postData) {
+    return Uri.splitQueryString(postData) ;
+  }
+  
+  Map<String,String> _parsePostData_Multipart(HttpRequest request, String postData) {
+    
     String boundary = request.headers.contentType.parameters['boundary'] ;
     
     List<String> parts = postData.split('$boundary\r\n') ;

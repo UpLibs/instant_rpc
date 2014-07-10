@@ -54,8 +54,8 @@ void test2( InstantRPC<FooInterface> irpc ) {
   } ) ;
   
   irpc.listenToEventType( 'test', (e) {
-      print("LISTEN EVENT TYPE TEST>>>>>>>>>>>>>>>>>>>>>>>>> $e") ;
-    } ) ;
+    print("LISTEN EVENT TYPE TEST>>>>>>>>>>>>>>>>>>>>>>>>> $e") ;
+  } ) ;
   
   irpc.updateEvents() ;
   

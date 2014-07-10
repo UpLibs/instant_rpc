@@ -241,7 +241,7 @@ class IRPCRequest {
   }
   
   String toString() {
-    return "${ methodPost ? 'POST' : 'GET' }> $url $postParams" ;
+    return "${ methodPost ? 'POST' : 'GET' }> $url${ postParams != null ? ' $postParams' : '' }" ;
   }
   
 }
