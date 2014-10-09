@@ -333,6 +333,8 @@ abstract class IRPCRequester {
   
 }
 
+const bool ALLOW_UNKNOW_METHODS = true ; 
+
 @proxy
 abstract class IRPCProxy {
   
@@ -342,6 +344,13 @@ abstract class IRPCProxy {
   
   List _checkMethod(Invocation mirror) {
     String methodName = MirrorSystem.getName( mirror.memberName ) ;
+    
+    if (ALLOW_UNKNOW_METHODS) {
+      List ret = [ methodName , null ] ;
+      _checkMethods[methodName] = ret ;
+      return ret ;
+    }
+    
     
     List alreadyOk = _checkMethods[methodName] ; 
     

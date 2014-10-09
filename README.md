@@ -23,6 +23,9 @@ TODO
 CHANGELOG
 ---------
 
+  * version: 0.1.6:
+  Fix for Dart 1.6 mirrors (dart2js).
+
   * version: 0.1.5:
   Add support to URL Encoded POST data.
 
